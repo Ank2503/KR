@@ -2,13 +2,17 @@
 
 namespace app\controllers;
 
+use app\models\CommentForm;
+use yii\web\Controller;
 use Yii;
 use yii\filters\AccessControl;
-use yii\web\Controller;
 use yii\web\Response;
 use yii\filters\VerbFilter;
-use app\models\LoginForm;
 use app\models\ContactForm;
+use app\models\Article;
+use app\models\Category;
+use yii\data\Pagination;
+use yii\helpers\ArrayHelper;
 
 class SiteController extends Controller
 {
@@ -61,7 +65,32 @@ class SiteController extends Controller
      */
     public function actionIndex()
     {
-        return $this->render('index');
+        // build a DB query to get all articles with status = 1
+        $query = Article::find();
+
+        // get the total number of articles (but do not fetch the article data yet)
+        $count = $query->count();
+
+        // create a pagination object with the total count
+        $pagination = new Pagination(['totalCount' => $count,'pageSize'=>1]);
+
+        // limit the query using the pagination and retrieve the articles
+        $articles = $query->offset($pagination->offset)
+            ->limit($pagination->limit)
+            ->all();
+
+
+        $not_popular = Article::find()->orderBy('viewed asc')->limit(3)->all();
+        $recent = Article::find()->orderBy('date desc')->limit(4)->all();
+        $categories = Category::find()->all();
+        //sort($category);
+        return $this->render('index',[
+            'articles'=>$articles,
+            'pagination'=>$pagination,
+            'not_popular'=>$not_popular,
+            'recent'=>$recent,
+            'categories'=>$categories
+        ]);
     }
 
     /**
@@ -69,34 +98,7 @@ class SiteController extends Controller
      *
      * @return Response|string
      */
-    public function actionLogin()
-    {
-        if (!Yii::$app->user->isGuest) {
-            return $this->goHome();
-        }
 
-        $model = new LoginForm();
-        if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            return $this->goBack();
-        }
-
-        $model->password = '';
-        return $this->render('login', [
-            'model' => $model,
-        ]);
-    }
-
-    /**
-     * Logout action.
-     *
-     * @return Response
-     */
-    public function actionLogout()
-    {
-        Yii::$app->user->logout();
-
-        return $this->goHome();
-    }
 
     /**
      * Displays contact page.
@@ -125,4 +127,102 @@ class SiteController extends Controller
     {
         return $this->render('about');
     }
+
+    public function actionSinglepost($id)
+    {
+        $article = Article::findOne($id);
+        $tags = ArrayHelper::map($article->tags, 'id', 'title');
+        $not_popular = Article::find()->orderBy('viewed asc')->limit(3)->all();
+        $recent = Article::find()->orderBy('date desc')->limit(4)->all();
+        $categories = Category::find()->all();
+        $comments = $article->getArticleComments();
+        $commentForm=new CommentForm();
+        $article->singlePostCount();
+
+
+        return $this->render('singlepost',[
+            'article'=>$article,
+            'tags',$tags,
+            'not_popular'=>$not_popular,
+            'recent'=>$recent,
+            'categories'=>$categories,
+            'comments'=>$comments,
+            'commentForm'=>$commentForm
+        ]);
+    }
+    public function actionCategory($id)
+    {
+        // build a DB query to get all articles with status = 1
+        $query = Article::find()->where(['category_id'=>$id]);
+
+        // get the total number of articles (but do not fetch the article data yet)
+        $count = $query->count();
+
+        // create a pagination object with the total count
+        $pagination = new Pagination(['totalCount' => $count,'pageSize'=>10]);
+
+        // limit the query using the pagination and retrieve the articles
+        $articles = $query->offset($pagination->offset)
+            ->limit($pagination->limit)
+            ->all();
+
+        $not_popular = Article::find()->orderBy('viewed asc')->limit(3)->all();
+        $recent = Article::find()->orderBy('date desc')->limit(4)->all();
+        $categories = Category::find()->all();
+        return $this->render('category',[
+            'articles'=>$articles,
+            'pagination'=>$pagination,
+            'not_popular'=>$not_popular,
+            'recent'=>$recent,
+            'categories'=>$categories
+
+            ]);
+    }
+
+
+    public function actionComment($id)
+    {
+
+
+        $model = new CommentForm();
+        if(Yii::$app->request->isPost)
+        {
+            $model->load(Yii::$app->request->post());
+            if($model->saveComment($id))
+            {
+                Yii::$app->getSession()->setFlash('comment','Your comment will be added soon');
+                return $this->redirect(['site/singlepost','id'=>$id]);
+            }
+        }
+    }
+
+    public function actionTag($id)
+    {
+        // build a DB query to get all articles with status = 1
+        $query = Article::find()->where(['category_id'=>$id]);
+
+        // get the total number of articles (but do not fetch the article data yet)
+        $count = $query->count();
+        $pagination = new Pagination(['totalCount' => $count,'pageSize'=>10]);
+        $articles = $query->offset($pagination->offset)
+            ->limit($pagination->limit)
+            ->all();
+        $data=Category::getArticleByTag($id);
+        $not_popular = Article::find()->orderBy('viewed asc')->limit(3)->all();
+        $recent = Article::find()->orderBy('date desc')->limit(4)->all();
+        $categories = Category::getAll();
+        return $this->render('tag', [
+            'articles'=>$data['articles'],
+            'pagination'=>$data['pagination'],
+            'not_popular'=>$not_popular,
+            'recent'=>$recent,
+            'categories'=>$categories
+
+            ]);
+    }
+
+
+
+
+
 }

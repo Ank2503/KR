@@ -1,8 +1,6 @@
 <?php
 
-use app\models\Article;
 use yii\helpers\Html;
-use yii\web\View;
 use yii\widgets\ActiveForm;
 
 /* @var $this yii\web\View */
@@ -13,9 +11,11 @@ use yii\widgets\ActiveForm;
 <div class="article-form">
 
     <?php $form = ActiveForm::begin(); ?>
+    <br/>
+    <br/>
+    <br/>
 
     <?= $form->field($model, 'image')->fileInput(['maxlength' => true]) ?>
-
 
     <div class="form-group">
         <?= Html::submitButton('Submit', ['class' => 'btn btn-success']) ?>
@@ -24,5 +24,3 @@ use yii\widgets\ActiveForm;
     <?php ActiveForm::end(); ?>
 
 </div>
-
-
